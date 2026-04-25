@@ -4,6 +4,10 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import UsuarioList from './pages/usuarios/UsuarioList'
 import UsuarioForm from './pages/usuarios/UsuarioForm'
+import BloquesCatalog from './pages/catalogos/BloquesCatalog'
+import CultivosCatalog from './pages/catalogos/CultivosCatalog'
+import ClientesCatalog from './pages/catalogos/ClientesCatalog'
+import TrabajadoresCatalog from './pages/catalogos/TrabajadoresCatalog'
 import Layout from './components/Layout'
 import { Role } from './types'
 import { ReactNode } from 'react'
@@ -26,21 +30,17 @@ function AppRoutes() {
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="usuarios" element={
-          <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
-            <UsuarioList />
-          </ProtectedRoute>
-        } />
-        <Route path="usuarios/nuevo" element={
-          <ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}>
-            <UsuarioForm />
-          </ProtectedRoute>
-        } />
-        <Route path="usuarios/:id/editar" element={
-          <ProtectedRoute>
-            <UsuarioForm />
-          </ProtectedRoute>
-        } />
+
+        {/* Catálogos */}
+        <Route path="catalogos/bloques" element={<BloquesCatalog />} />
+        <Route path="catalogos/cultivos" element={<CultivosCatalog />} />
+        <Route path="catalogos/clientes" element={<ClientesCatalog />} />
+        <Route path="catalogos/personal" element={<TrabajadoresCatalog />} />
+
+        {/* Usuarios */}
+        <Route path="usuarios" element={<ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}><UsuarioList /></ProtectedRoute>} />
+        <Route path="usuarios/nuevo" element={<ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}><UsuarioForm /></ProtectedRoute>} />
+        <Route path="usuarios/:id/editar" element={<ProtectedRoute><UsuarioForm /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

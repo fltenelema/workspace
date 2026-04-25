@@ -17,3 +17,134 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Block {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  area      Float
+  status    String   @default("Libre")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cycles    Cycle[]
+}
+
+model Crop {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  unit        String    @default("kg")
+  harvestDays Int       @default(90)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  varieties   Variety[]
+  cycles      Cycle[]
+}
+
+model Variety {
+  id      Int     @id @default(autoincrement())
+  name    String
+  cropId  Int
+  crop    Crop    @relation(fields: [cropId], references: [id])
+  cycles  Cycle[]
+  sales   Sale[]
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  sales     Sale[]
+}
+
+model Worker {
+  id          Int      @id @default(autoincrement())
+  name        String
+  dailySalary Float
+  phone       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  labors      Labor[]
+}
+
+model Cycle {
+  id          Int       @id @default(autoincrement())
+  code        String?
+  blockId     Int
+  block       Block     @relation(fields: [blockId], references: [id])
+  cropId      Int
+  crop        Crop      @relation(fields: [cropId], references: [id])
+  varietyId   Int?
+  variety     Variety?  @relation(fields: [varietyId], references: [id])
+  status      String    @default("En Curso")
+  sowingDate  DateTime
+  closingDate DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  sales       Sale[]
+  expenses    Expense[]
+  labors      Labor[]
+}
+
+model Sale {
+  id        Int      @id @default(autoincrement())
+  cycleId   Int
+  cycle     Cycle    @relation(fields: [cycleId], references: [id])
+  clientId  Int
+  client    Client   @relation(fields: [clientId], references: [id])
+  varietyId Int?
+  variety   Variety? @relation(fields: [varietyId], references: [id])
+  date      DateTime @default(now())
+  qty1      Float    @default(0)
+  price1    Float    @default(0)
+  qty2      Float    @default(0)
+  price2    Float    @default(0)
+  qty3      Float    @default(0)
+  price3    Float    @default(0)
+  qty4      Float    @default(0)
+  price4    Float    @default(0)
+  qty5      Float    @default(0)
+  price5    Float    @default(0)
+  qty6      Float    @default(0)
+  price6    Float    @default(0)
+  qty7      Float    @default(0)
+  price7    Float    @default(0)
+  totalKg   Float    @default(0)
+  totalUsd  Float    @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model Expense {
+  id        Int      @id @default(autoincrement())
+  cycleId   Int
+  cycle     Cycle    @relation(fields: [cycleId], references: [id])
+  category  String
+  item      String
+  quantity  Float    @default(1)
+  unit      String   @default("unidad")
+  cost      Float
+  total     Float
+  date      DateTime @default(now())
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model Labor {
+  id        Int      @id @default(autoincrement())
+  cycleId   Int
+  cycle     Cycle    @relation(fields: [cycleId], references: [id])
+  workerId  Int
+  worker    Worker   @relation(fields: [workerId], references: [id])
+  days      Float
+  dailyRate Float
+  total     Float
+  date      DateTime @default(now())
+  notes     String?
+  createdAt DateTime @default(now())
+}

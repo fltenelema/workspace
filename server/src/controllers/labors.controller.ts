@@ -1,0 +1,48 @@
+import { Response } from 'express'
+import prisma from '../lib/prisma'
+import { AuthRequest } from '../middleware/auth.middleware'
+
+export const getLabors = async (req: AuthRequest, res: Response) => {
+  const { cycleId } = req.query
+  const where = cycleId ? { cycleId: parseInt(String(cycleId)) } : {}
+  const labors = await prisma.labor.findMany({
+    where,
+    include: { worker: true, cycle: { include: { block: true, crop: true } } },
+    orderBy: { date: 'desc' },
+  })
+  res.json(labors)
+}
+
+export const createLabor = async (req: AuthRequest, res: Response) => {
+  const { cycleId, workerId, days, date, notes } = req.body
+  if (!cycleId || !workerId || !days) {
+    res.status(400).json({ message: 'Ciclo, trabajador y días son requeridos' }); return
+  }
+  const cycle = await prisma.cycle.findUnique({ where: { id: parseInt(cycleId) } })
+  if (!cycle) { res.status(404).json({ message: 'Ciclo no encontrado' }); return }
+  if (cycle.status === 'Cerrado') { res.status(400).json({ message: 'El ciclo está cerrado' }); return }
+
+  const worker = await prisma.worker.findUnique({ where: { id: parseInt(workerId) } })
+  if (!worker) { res.status(404).json({ message: 'Trabajador no encontrado' }); return }
+
+  const daysNum = parseFloat(days)
+  const total = daysNum * worker.dailySalary
+
+  const labor = await prisma.labor.create({
+    data: {
+      cycleId: parseInt(cycleId), workerId: parseInt(workerId),
+      days: daysNum, dailyRate: worker.dailySalary, total,
+      date: date ? new Date(date) : new Date(), notes,
+    },
+    include: { worker: true },
+  })
+  res.status(201).json(labor)
+}
+
+export const deleteLabor = async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id)
+  const labor = await prisma.labor.findUnique({ where: { id } })
+  if (!labor) { res.status(404).json({ message: 'Labor no encontrada' }); return }
+  await prisma.labor.delete({ where: { id } })
+  res.json({ message: 'Labor eliminada' })
+}

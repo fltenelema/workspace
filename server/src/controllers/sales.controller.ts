@@ -1,0 +1,62 @@
+import { Response } from 'express'
+import prisma from '../lib/prisma'
+import { AuthRequest } from '../middleware/auth.middleware'
+
+const calcTotals = (body: Record<string, unknown>) => {
+  let totalKg = 0
+  let totalUsd = 0
+  for (let i = 1; i <= 7; i++) {
+    const qty = parseFloat(String(body[`qty${i}`] ?? 0)) || 0
+    const price = parseFloat(String(body[`price${i}`] ?? 0)) || 0
+    totalKg += qty
+    totalUsd += qty * price
+  }
+  return { totalKg, totalUsd }
+}
+
+export const getSales = async (req: AuthRequest, res: Response) => {
+  const { cycleId } = req.query
+  const where = cycleId ? { cycleId: parseInt(String(cycleId)) } : {}
+  const sales = await prisma.sale.findMany({
+    where,
+    include: { client: true, variety: true, cycle: { include: { block: true, crop: true } } },
+    orderBy: { date: 'desc' },
+  })
+  res.json(sales)
+}
+
+export const createSale = async (req: AuthRequest, res: Response) => {
+  const { cycleId, clientId, varietyId, date, notes, ...rest } = req.body
+  if (!cycleId || !clientId) { res.status(400).json({ message: 'Ciclo y cliente son requeridos' }); return }
+
+  const cycle = await prisma.cycle.findUnique({ where: { id: parseInt(cycleId) } })
+  if (!cycle) { res.status(404).json({ message: 'Ciclo no encontrado' }); return }
+  if (cycle.status === 'Cerrado') { res.status(400).json({ message: 'El ciclo está cerrado' }); return }
+
+  const { totalKg, totalUsd } = calcTotals(rest)
+  const sale = await prisma.sale.create({
+    data: {
+      cycleId: parseInt(cycleId), clientId: parseInt(clientId),
+      varietyId: varietyId ? parseInt(varietyId) : null,
+      date: date ? new Date(date) : new Date(),
+      qty1: parseFloat(rest.qty1 as string) || 0, price1: parseFloat(rest.price1 as string) || 0,
+      qty2: parseFloat(rest.qty2 as string) || 0, price2: parseFloat(rest.price2 as string) || 0,
+      qty3: parseFloat(rest.qty3 as string) || 0, price3: parseFloat(rest.price3 as string) || 0,
+      qty4: parseFloat(rest.qty4 as string) || 0, price4: parseFloat(rest.price4 as string) || 0,
+      qty5: parseFloat(rest.qty5 as string) || 0, price5: parseFloat(rest.price5 as string) || 0,
+      qty6: parseFloat(rest.qty6 as string) || 0, price6: parseFloat(rest.price6 as string) || 0,
+      qty7: parseFloat(rest.qty7 as string) || 0, price7: parseFloat(rest.price7 as string) || 0,
+      totalKg, totalUsd, notes,
+    },
+    include: { client: true, variety: true },
+  })
+  res.status(201).json(sale)
+}
+
+export const deleteSale = async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id)
+  const sale = await prisma.sale.findUnique({ where: { id } })
+  if (!sale) { res.status(404).json({ message: 'Venta no encontrada' }); return }
+  await prisma.sale.delete({ where: { id } })
+  res.json({ message: 'Venta eliminada' })
+}

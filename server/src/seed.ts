@@ -4,27 +4,148 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const users = [
-  { name: 'Super Admin', email: 'superadmin@agro.com', password: 'superadmin123', role: 'SUPER_ADMIN' },
-  { name: 'Administrador', email: 'admin@agro.com', password: 'admin123', role: 'ADMIN' },
-  { name: 'Juan Pérez', email: 'juan@agro.com', password: 'usuario123', role: 'USER' },
-  { name: 'María López', email: 'maria@agro.com', password: 'usuario123', role: 'USER' },
-]
-
 async function main() {
-  console.log('🌱 Iniciando seed de base de datos...\n')
-  for (const u of users) {
-    const hashed = await bcrypt.hash(u.password, 10)
+  console.log('🌱 Iniciando seed...\n')
+
+  // Users
+  for (const u of [
+    { name: 'Super Admin', email: 'superadmin@agro.com', password: 'superadmin123', role: 'SUPER_ADMIN' },
+    { name: 'Administrador', email: 'admin@agro.com', password: 'admin123', role: 'ADMIN' },
+    { name: 'Juan Pérez', email: 'juan@agro.com', password: 'usuario123', role: 'USER' },
+  ]) {
     await prisma.user.upsert({
       where: { email: u.email },
       update: {},
-      create: { ...u, password: hashed },
+      create: { ...u, password: await bcrypt.hash(u.password, 10) },
     })
-    console.log(`✅ ${u.role.padEnd(12)} | ${u.email.padEnd(25)} | contraseña: ${u.password}`)
   }
+
+  // Blocks
+  const blocks = await Promise.all([
+    prisma.block.upsert({ where: { code: 'A' }, update: {}, create: { code: 'A', name: 'Bloque A', area: 2500 } }),
+    prisma.block.upsert({ where: { code: 'B' }, update: {}, create: { code: 'B', name: 'Bloque B', area: 1800 } }),
+    prisma.block.upsert({ where: { code: 'C' }, update: {}, create: { code: 'C', name: 'Bloque C', area: 3200 } }),
+    prisma.block.upsert({ where: { code: 'D' }, update: {}, create: { code: 'D', name: 'Bloque D', area: 1500 } }),
+    prisma.block.upsert({ where: { code: 'E' }, update: {}, create: { code: 'E', name: 'Bloque E', area: 2100 } }),
+  ])
+  console.log(`✅ ${blocks.length} bloques`)
+
+  // Crops + varieties
+  const cropData = [
+    { name: 'Tomate', unit: 'kg', harvestDays: 90, varieties: ['Cherry', 'Pera', 'Saladette'] },
+    { name: 'Pepino', unit: 'kg', harvestDays: 60, varieties: ['Europeo', 'Persa'] },
+    { name: 'Pimiento', unit: 'kg', harvestDays: 120, varieties: ['Rojo', 'Amarillo', 'Verde'] },
+    { name: 'Lechuga', unit: 'unidad', harvestDays: 45, varieties: ['Romana', 'Iceberg'] },
+    { name: 'Zanahoria', unit: 'kg', harvestDays: 80, varieties: ['Nantesa', 'Chantenay'] },
+  ]
+  const crops: Record<string, { id: number; varieties: { name: string; id: number }[] }> = {}
+  for (const c of cropData) {
+    const crop = await prisma.crop.upsert({
+      where: { name: c.name }, update: {},
+      create: { name: c.name, unit: c.unit, harvestDays: c.harvestDays },
+    })
+    const varieties = []
+    for (const v of c.varieties) {
+      const variety = await prisma.variety.upsert({
+        where: { id: (await prisma.variety.findFirst({ where: { name: v, cropId: crop.id } }))?.id ?? 0 },
+        update: {},
+        create: { name: v, cropId: crop.id },
+      })
+      varieties.push({ name: v, id: variety.id })
+    }
+    crops[c.name] = { id: crop.id, varieties }
+  }
+  console.log(`✅ ${cropData.length} cultivos con variedades`)
+
+  // Clients
+  const clientNames = ['Mercado Central', 'Supermercado La Cosecha', 'Restaurante El Campo', 'Distribuidora Agro', 'Exportaciones Verde']
+  for (const name of clientNames) {
+    const exists = await prisma.client.findFirst({ where: { name } })
+    if (!exists) await prisma.client.create({ data: { name } })
+  }
+  console.log(`✅ ${clientNames.length} clientes`)
+
+  // Workers
+  const workerData = [
+    { name: 'Carlos Mendoza', dailySalary: 25 }, { name: 'María Rodríguez', dailySalary: 22 },
+    { name: 'José García', dailySalary: 25 },    { name: 'Ana Martínez', dailySalary: 20 },
+    { name: 'Luis Torres', dailySalary: 22 },    { name: 'Rosa López', dailySalary: 20 },
+    { name: 'Pedro Sánchez', dailySalary: 25 },  { name: 'Elena Díaz', dailySalary: 18 },
+  ]
+  for (const w of workerData) {
+    const exists = await prisma.worker.findFirst({ where: { name: w.name } })
+    if (!exists) await prisma.worker.create({ data: w })
+  }
+  console.log(`✅ ${workerData.length} trabajadores`)
+
+  // Active cycles (only if no cycles exist)
+  const existingCycles = await prisma.cycle.count()
+  if (existingCycles === 0) {
+    const today = new Date()
+    const daysAgo = (n: number) => { const d = new Date(today); d.setDate(d.getDate() - n); return d }
+
+    // Cycle 1: Bloque A, Tomate Cherry, 65 días atrás → cosecha en 25 días (yellow)
+    const c1 = await prisma.cycle.create({
+      data: {
+        blockId: blocks[0].id, cropId: crops['Tomate'].id,
+        varietyId: crops['Tomate'].varieties[0].id,
+        sowingDate: daysAgo(65), status: 'En Curso',
+      },
+    })
+    await prisma.cycle.update({ where: { id: c1.id }, data: { code: `CIC-${today.getFullYear()}-001` } })
+    await prisma.block.update({ where: { id: blocks[0].id }, data: { status: 'En Cultivo' } })
+
+    // Cycle 2: Bloque B, Pepino Europeo, 55 días atrás → cosecha en 5 días (red)
+    const c2 = await prisma.cycle.create({
+      data: {
+        blockId: blocks[1].id, cropId: crops['Pepino'].id,
+        varietyId: crops['Pepino'].varieties[0].id,
+        sowingDate: daysAgo(55), status: 'Cosechando',
+      },
+    })
+    await prisma.cycle.update({ where: { id: c2.id }, data: { code: `CIC-${today.getFullYear()}-002` } })
+    await prisma.block.update({ where: { id: blocks[1].id }, data: { status: 'En Cultivo' } })
+
+    // Cycle 3: Bloque D, Pimiento Rojo, 20 días atrás → cosecha en 100 días (green)
+    const c3 = await prisma.cycle.create({
+      data: {
+        blockId: blocks[3].id, cropId: crops['Pimiento'].id,
+        varietyId: crops['Pimiento'].varieties[0].id,
+        sowingDate: daysAgo(20), status: 'En Curso',
+      },
+    })
+    await prisma.cycle.update({ where: { id: c3.id }, data: { code: `CIC-${today.getFullYear()}-003` } })
+    await prisma.block.update({ where: { id: blocks[3].id }, data: { status: 'En Cultivo' } })
+
+    // Sample expenses and labors for cycle 1
+    const client = await prisma.client.findFirst({ where: { name: 'Mercado Central' } })
+    const worker = await prisma.worker.findFirst({ where: { name: 'Carlos Mendoza' } })
+    if (client) {
+      await prisma.sale.create({
+        data: {
+          cycleId: c1.id, clientId: client.id,
+          varietyId: crops['Tomate'].varieties[0].id,
+          date: daysAgo(10),
+          qty1: 150, price1: 2.5, qty2: 80, price2: 1.8, qty3: 40, price3: 1.2,
+          totalKg: 270, totalUsd: 150 * 2.5 + 80 * 1.8 + 40 * 1.2,
+        },
+      })
+    }
+    await prisma.expense.create({
+      data: { cycleId: c1.id, category: 'Semillas', item: 'Semilla Tomate Cherry', quantity: 5, unit: 'sobres', cost: 12, total: 60, date: daysAgo(70) },
+    })
+    await prisma.expense.create({
+      data: { cycleId: c1.id, category: 'Fertilizantes', item: 'Nitrato de Calcio', quantity: 25, unit: 'kg', cost: 1.8, total: 45, date: daysAgo(40) },
+    })
+    if (worker) {
+      await prisma.labor.create({
+        data: { cycleId: c1.id, workerId: worker.id, days: 8, dailyRate: worker.dailySalary, total: 8 * worker.dailySalary, date: daysAgo(30) },
+      })
+    }
+    console.log(`✅ 3 ciclos activos con datos de ejemplo`)
+  }
+
   console.log('\n✔ Seed completado')
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect())
+main().catch(console.error).finally(() => prisma.$disconnect())
