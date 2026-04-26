@@ -3,12 +3,12 @@ import Modal from '../Modal'
 import client from '../../api/client'
 import { Block, Cycle, Worker } from '../../types'
 
-interface Props { onClose: () => void; onSuccess: () => void }
+interface Props { onClose: () => void; onSuccess: () => void; preselectedBlockId?: number }
 
-export default function AgregarTrabajadorModal({ onClose, onSuccess }: Props) {
+export default function AgregarTrabajadorModal({ onClose, onSuccess, preselectedBlockId }: Props) {
   const [blocks, setBlocks] = useState<Block[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
-  const [blockId, setBlockId] = useState('')
+  const [blockId, setBlockId] = useState(preselectedBlockId ? String(preselectedBlockId) : '')
   const [activeCycle, setActiveCycle] = useState<Cycle | null>(null)
   const [workerId, setWorkerId] = useState('')
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null)
@@ -27,8 +27,9 @@ export default function AgregarTrabajadorModal({ onClose, onSuccess }: Props) {
     ]).then(([b, w]) => {
       setBlocks(b.data.filter(b => b.status === 'En Cultivo'))
       setWorkers(w.data.filter(w => w.active))
+      if (preselectedBlockId) onBlockChange(String(preselectedBlockId))
     })
-  }, [])
+  }, [preselectedBlockId])
 
   const onBlockChange = async (id: string) => {
     setBlockId(id)

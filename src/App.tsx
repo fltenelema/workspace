@@ -8,6 +8,10 @@ import BloquesCatalog from './pages/catalogos/BloquesCatalog'
 import CultivosCatalog from './pages/catalogos/CultivosCatalog'
 import ClientesCatalog from './pages/catalogos/ClientesCatalog'
 import TrabajadoresCatalog from './pages/catalogos/TrabajadoresCatalog'
+import InventarioCatalog from './pages/catalogos/InventarioCatalog'
+import CiclosList from './pages/ciclos/CiclosList'
+import CicloDetail from './pages/ciclos/CicloDetail'
+import ReportesPage from './pages/reportes/ReportesPage'
 import Layout from './components/Layout'
 import { Role } from './types'
 import { ReactNode } from 'react'
@@ -31,11 +35,19 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
 
+        {/* Ciclos */}
+        <Route path="ciclos" element={<CiclosList />} />
+        <Route path="ciclos/:id" element={<CicloDetail />} />
+
+        {/* Reportes */}
+        <Route path="reportes" element={<ReportesPage />} />
+
         {/* Catálogos */}
         <Route path="catalogos/bloques" element={<BloquesCatalog />} />
         <Route path="catalogos/cultivos" element={<CultivosCatalog />} />
         <Route path="catalogos/clientes" element={<ClientesCatalog />} />
         <Route path="catalogos/personal" element={<TrabajadoresCatalog />} />
+        <Route path="catalogos/inventario" element={<InventarioCatalog />} />
 
         {/* Usuarios */}
         <Route path="usuarios" element={<ProtectedRoute roles={['SUPER_ADMIN', 'ADMIN']}><UsuarioList /></ProtectedRoute>} />

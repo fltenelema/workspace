@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import client from '../api/client'
-import { DashboardData, DashboardCycle } from '../types'
+import { DashboardData, DashboardCycle, Block } from '../types'
 import NuevoCicloModal from '../components/modals/NuevoCicloModal'
 import CerrarCosechaModal from '../components/modals/CerrarCosechaModal'
 import RegistrarVentaModal from '../components/modals/RegistrarVentaModal'
@@ -32,7 +33,7 @@ function CycleCard({ cycle }: { cycle: DashboardCycle }) {
     : `${cycle.daysUntilHarvest} días para cosecha`
 
   return (
-    <div className={`rounded-xl border-2 ${cfg.border} ${cfg.bg} p-4`}>
+    <Link to={`/ciclos/${cycle.id}`} className={`block rounded-xl border-2 ${cfg.border} ${cfg.bg} p-4 hover:shadow-md transition-shadow`}>
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2">
@@ -69,6 +70,48 @@ function CycleCard({ cycle }: { cycle: DashboardCycle }) {
         <span>Sembrado: {new Date(cycle.sowingDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</span>
         <span>{cycle.block.area.toLocaleString()} m² · {cycle.salesCount} ventas</span>
       </div>
+    </Link>
+  )
+}
+
+function BlockMap({ blocks, cycles }: { blocks: Block[]; cycles: DashboardCycle[] }) {
+  const cyclesByBlock = new Map(cycles.map(c => [c.block.id, c]))
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-gray-700">🗺️ Mapa de Bloques</h2>
+        <div className="flex gap-3 text-xs text-gray-500">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-200 inline-block" />Libre</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-300 inline-block" />En cultivo</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-300 inline-block" />Urgente</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+        {blocks.map(b => {
+          const cycle = cyclesByBlock.get(b.id)
+          const alert = cycle?.alert
+          const bg = b.status === 'Libre'
+            ? 'bg-green-100 border-green-200 hover:bg-green-200'
+            : alert === 'red' ? 'bg-red-100 border-red-300 hover:bg-red-200'
+            : alert === 'yellow' ? 'bg-amber-100 border-amber-300 hover:bg-amber-200'
+            : 'bg-orange-100 border-orange-200 hover:bg-orange-200'
+
+          return (
+            <Link
+              key={b.id}
+              to={cycle ? `/ciclos/${cycle.id}` : '/catalogos/bloques'}
+              className={`${bg} border rounded-lg p-2.5 text-center transition-colors`}
+              title={cycle ? `${cycle.crop.name}${cycle.variety ? ` · ${cycle.variety.name}` : ''}` : 'Libre'}
+            >
+              <p className="text-xs font-bold text-gray-700">{b.code}</p>
+              <p className="text-[10px] text-gray-500 truncate">{cycle ? cycle.crop.name : 'Libre'}</p>
+              {cycle && <p className="text-[10px] font-medium mt-0.5">{cycle.daysUntilHarvest <= 0 ? '⚠️ Vencido' : `${cycle.daysUntilHarvest}d`}</p>}
+            </Link>
+          )
+        })}
+      </div>
+      {blocks.length === 0 && <p className="text-sm text-gray-400 text-center py-4">Sin bloques registrados</p>}
     </div>
   )
 }
@@ -76,10 +119,17 @@ function CycleCard({ cycle }: { cycle: DashboardCycle }) {
 export default function Dashboard() {
   const { user } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [blocks, setBlocks] = useState<Block[]>([])
   const [modal, setModal] = useState<ModalType>(null)
 
   const load = useCallback(() => {
-    client.get<DashboardData>('/dashboard').then(r => setData(r.data)).catch(() => null)
+    Promise.all([
+      client.get<DashboardData>('/dashboard'),
+      client.get<Block[]>('/blocks'),
+    ]).then(([d, b]) => {
+      setData(d.data)
+      setBlocks(b.data)
+    }).catch(() => null)
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -92,12 +142,24 @@ export default function Dashboard() {
   const yellowCycles = cycles.filter(c => c.alert === 'yellow')
   const greenCycles = cycles.filter(c => c.alert === 'green')
 
+  // Top crops by profit
+  const cropProfits: Record<string, number> = {}
+  cycles.forEach(c => {
+    cropProfits[c.crop.name] = (cropProfits[c.crop.name] || 0) + c.profit
+  })
+  const topCrops = Object.entries(cropProfits).sort((a, b) => b[1] - a[1]).slice(0, 3)
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Welcome */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Bienvenido, {user?.name} 👋</h1>
-        <p className="text-gray-500 mt-0.5 text-sm">Sistema de Gestión Agrícola · Panel de Control</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Bienvenido, {user?.name} 👋</h1>
+          <p className="text-gray-500 mt-0.5 text-sm">Sistema de Gestión Agrícola · Panel de Control</p>
+        </div>
+        <Link to="/reportes" className="text-sm text-green-700 hover:text-green-800 font-medium bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors">
+          📊 Ver reportes
+        </Link>
       </div>
 
       {/* Alerts banner */}
@@ -146,12 +208,48 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Block map + Top crops */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="md:col-span-2">
+          <BlockMap blocks={blocks} cycles={cycles} />
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h2 className="text-base font-semibold text-gray-700 mb-4">🏆 Cultivos más rentables</h2>
+          {topCrops.length === 0 ? (
+            <p className="text-sm text-gray-400">Sin datos de rentabilidad</p>
+          ) : (
+            <div className="space-y-3">
+              {topCrops.map(([name, profit], i) => (
+                <div key={name} className="flex items-center gap-3">
+                  <span className="text-lg font-bold text-gray-400">{i + 1}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{name}</p>
+                    <p className={`text-xs font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>${profit.toFixed(2)}</p>
+                  </div>
+                </div>
+              ))}
+              <Link to="/reportes?tab=cultivos" className="block text-xs text-blue-600 hover:underline pt-2 border-t border-gray-100">Ver análisis completo →</Link>
+            </div>
+          )}
+
+          {(stats?.alerts.yellow ?? 0) > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-sm font-semibold text-yellow-700 mb-2">🟡 Cosechas próximas</p>
+              <p className="text-sm text-gray-500">{stats!.alerts.yellow} ciclo{stats!.alerts.yellow > 1 ? 's' : ''} en ≤ 15 días</p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Cycles */}
       {cycles.length > 0 && (
         <div>
-          <h2 className="text-base font-semibold text-gray-700 mb-3">🌾 Ciclos Activos</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-gray-700">🌾 Ciclos Activos</h2>
+            <Link to="/ciclos" className="text-sm text-blue-600 hover:text-blue-800">Ver historial completo →</Link>
+          </div>
 
-          {/* Legend */}
           <div className="flex gap-4 text-xs text-gray-500 mb-4">
             <span>🔴 Cosecha urgente (≤7 días)</span>
             <span>🟡 Cosecha próxima (≤15 días)</span>

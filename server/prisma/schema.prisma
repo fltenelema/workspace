@@ -148,3 +148,29 @@ model Labor {
   notes     String?
   createdAt DateTime @default(now())
 }
+
+model Inventory {
+  id        Int      @id @default(autoincrement())
+  name      String
+  category  String
+  quantity  Float    @default(0)
+  unit      String   @default("unidad")
+  minStock  Float    @default(0)
+  cost      Float    @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  userEmail String?
+  action    String
+  entity    String
+  entityId  Int?
+  details   String?
+  createdAt DateTime @default(now())
+}

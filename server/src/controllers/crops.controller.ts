@@ -60,6 +60,16 @@ export const createVariety = async (req: AuthRequest, res: Response) => {
   res.status(201).json(variety)
 }
 
+export const updateVariety = async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.varId)
+  const { name } = req.body
+  if (!name) { res.status(400).json({ message: 'El nombre es requerido' }); return }
+  const variety = await prisma.variety.findUnique({ where: { id } })
+  if (!variety) { res.status(404).json({ message: 'Variedad no encontrada' }); return }
+  const updated = await prisma.variety.update({ where: { id }, data: { name } })
+  res.json(updated)
+}
+
 export const deleteVariety = async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.varId)
   await prisma.variety.delete({ where: { id } })

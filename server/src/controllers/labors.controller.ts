@@ -39,6 +39,24 @@ export const createLabor = async (req: AuthRequest, res: Response) => {
   res.status(201).json(labor)
 }
 
+export const updateLabor = async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id)
+  const labor = await prisma.labor.findUnique({ where: { id }, include: { cycle: true, worker: true } })
+  if (!labor) { res.status(404).json({ message: 'Labor no encontrada' }); return }
+  if (labor.cycle.status === 'Cerrado') { res.status(400).json({ message: 'No se puede editar una labor de un ciclo cerrado' }); return }
+
+  const { days, date, notes } = req.body
+  const daysNum = days !== undefined ? parseFloat(days) : labor.days
+  const total = daysNum * labor.dailyRate
+
+  const updated = await prisma.labor.update({
+    where: { id },
+    data: { days: daysNum, total, date: date ? new Date(date) : undefined, notes: notes !== undefined ? notes : undefined },
+    include: { worker: true },
+  })
+  res.json(updated)
+}
+
 export const deleteLabor = async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id)
   const labor = await prisma.labor.findUnique({ where: { id } })

@@ -26,6 +26,28 @@ export const updateWorker = async (req: AuthRequest, res: Response) => {
   res.json(updated)
 }
 
+export const getWorkerStats = async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id)
+  const worker = await prisma.worker.findUnique({ where: { id } })
+  if (!worker) { res.status(404).json({ message: 'Trabajador no encontrado' }); return }
+
+  const labors = await prisma.labor.findMany({
+    where: { workerId: id },
+    include: { cycle: { include: { block: true, crop: true } } },
+    orderBy: { date: 'desc' },
+  })
+
+  const totalDays = labors.reduce((s, l) => s + l.days, 0)
+  const totalEarned = labors.reduce((s, l) => s + l.total, 0)
+  const cycleIds = [...new Set(labors.map(l => l.cycleId))]
+
+  res.json({
+    worker, totalDays, totalEarned,
+    cyclesCount: cycleIds.length,
+    recentLabors: labors.slice(0, 10),
+  })
+}
+
 export const deleteWorker = async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id)
   const labors = await prisma.labor.count({ where: { workerId: id } })

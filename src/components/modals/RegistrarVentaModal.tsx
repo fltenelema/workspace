@@ -3,19 +3,19 @@ import Modal from '../Modal'
 import client from '../../api/client'
 import { Block, Client, Cycle, Variety } from '../../types'
 
-interface Props { onClose: () => void; onSuccess: () => void }
+interface Props { onClose: () => void; onSuccess: () => void; preselectedBlockId?: number }
 
 type ClassRow = { qty: string; price: string }
 
 const emptyRows = (): ClassRow[] => Array.from({ length: 7 }, () => ({ qty: '', price: '' }))
 
-export default function RegistrarVentaModal({ onClose, onSuccess }: Props) {
+export default function RegistrarVentaModal({ onClose, onSuccess, preselectedBlockId }: Props) {
   const [blocks, setBlocks] = useState<Block[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [activeCycle, setActiveCycle] = useState<Cycle | null>(null)
   const [varieties, setVarieties] = useState<Variety[]>([])
 
-  const [blockId, setBlockId] = useState('')
+  const [blockId, setBlockId] = useState(preselectedBlockId ? String(preselectedBlockId) : '')
   const [clientId, setClientId] = useState('')
   const [varietyId, setVarietyId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -32,8 +32,9 @@ export default function RegistrarVentaModal({ onClose, onSuccess }: Props) {
     ]).then(([b, c]) => {
       setBlocks(b.data.filter(b => b.status === 'En Cultivo'))
       setClients(c.data.filter(c => c.active))
+      if (preselectedBlockId) onBlockChange(String(preselectedBlockId))
     })
-  }, [])
+  }, [preselectedBlockId])
 
   const onBlockChange = async (id: string) => {
     setBlockId(id)

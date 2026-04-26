@@ -36,6 +36,30 @@ export const createExpense = async (req: AuthRequest, res: Response) => {
   res.status(201).json(expense)
 }
 
+export const updateExpense = async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id)
+  const expense = await prisma.expense.findUnique({ where: { id }, include: { cycle: true } })
+  if (!expense) { res.status(404).json({ message: 'Gasto no encontrado' }); return }
+  if (expense.cycle.status === 'Cerrado') { res.status(400).json({ message: 'No se puede editar un gasto de un ciclo cerrado' }); return }
+
+  const { category, item, quantity, unit, cost, date, notes } = req.body
+  const qty = quantity !== undefined ? parseFloat(quantity) : expense.quantity
+  const cst = cost !== undefined ? parseFloat(cost) : expense.cost
+  const total = qty * cst
+
+  const updated = await prisma.expense.update({
+    where: { id },
+    data: {
+      category: category ?? undefined,
+      item: item ?? undefined,
+      quantity: qty, unit: unit ?? undefined, cost: cst, total,
+      date: date ? new Date(date) : undefined,
+      notes: notes !== undefined ? notes : undefined,
+    },
+  })
+  res.json(updated)
+}
+
 export const deleteExpense = async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id)
   const expense = await prisma.expense.findUnique({ where: { id } })

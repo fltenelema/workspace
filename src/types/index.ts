@@ -73,3 +73,60 @@ export interface AuthResponse { token: string; user: User }
 export interface UserStats {
   total: number; active: number; inactive: number; byRole: { SUPER_ADMIN: number; ADMIN: number; USER: number }
 }
+
+export interface InventoryItem {
+  id: number; name: string; category: string; quantity: number; unit: string
+  minStock: number; cost: number; notes?: string; createdAt: string; updatedAt: string
+}
+
+export interface Notification {
+  type: 'error' | 'warning' | 'info'
+  title: string; message: string; link?: string
+}
+
+export interface SearchResult {
+  type: 'cycle' | 'block' | 'client' | 'worker'
+  id: number; label: string; sublabel: string; link: string
+}
+
+export interface CycleReport {
+  cycle: { id: number; code?: string; status: string; sowingDate: string; closingDate?: string; notes?: string }
+  block: { code: string; name: string; area: number }
+  crop: { name: string; unit: string; harvestDays: number }
+  variety: string | null
+  financials: {
+    revenue: number; expensesTotal: number; laborTotal: number; totalCost: number
+    profit: number; profitPerM2: number; revenuePerKg: number; totalKg: number
+  }
+  expensesByCategory: Record<string, number>
+  sales: Array<{ id: number; date: string; client: string; totalKg: number; totalUsd: number; pricePerKg: number; notes?: string }>
+  expenses: Expense[]
+  labors: Array<{ id: number; worker: string; days: number; dailyRate: number; total: number; date: string }>
+}
+
+export interface PeriodReportCycle {
+  id: number; code?: string; status: string; sowingDate: string; closingDate?: string
+  blockCode: string; blockName: string; cropName: string; area: number
+  revenue: number; expensesCost: number; laborCost: number; totalCost: number; profit: number
+  salesCount: number; totalKg: number
+}
+
+export interface PeriodReport {
+  cycles: PeriodReportCycle[]
+  totals: {
+    revenue: number; expenses: number; labor: number; totalCost: number; profit: number
+    cyclesCount: number; closedCount: number
+  }
+}
+
+export interface CropPerformance {
+  id: number; name: string; unit: string; harvestDays: number
+  totalCycles: number; closedCycles: number; activeCycles: number
+  totalRevenue: number; totalCost: number; totalProfit: number; totalKg: number
+  avgProfitPerM2: number; avgRevenuePerKg: number
+}
+
+export interface WorkerPerformance {
+  id: number; name: string; dailySalary: number; active: boolean
+  totalDays: number; totalEarned: number; cyclesCount: number; lastActivity: string | null
+}

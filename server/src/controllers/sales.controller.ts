@@ -53,6 +53,35 @@ export const createSale = async (req: AuthRequest, res: Response) => {
   res.status(201).json(sale)
 }
 
+export const updateSale = async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id)
+  const sale = await prisma.sale.findUnique({ where: { id }, include: { cycle: true } })
+  if (!sale) { res.status(404).json({ message: 'Venta no encontrada' }); return }
+  if (sale.cycle.status === 'Cerrado') { res.status(400).json({ message: 'No se puede editar una venta de un ciclo cerrado' }); return }
+
+  const { clientId, varietyId, date, notes, ...rest } = req.body
+  const { totalKg, totalUsd } = calcTotals(rest)
+
+  const updated = await prisma.sale.update({
+    where: { id },
+    data: {
+      clientId: clientId ? parseInt(clientId) : undefined,
+      varietyId: varietyId ? parseInt(varietyId) : null,
+      date: date ? new Date(date) : undefined,
+      qty1: parseFloat(rest.qty1 as string) || 0, price1: parseFloat(rest.price1 as string) || 0,
+      qty2: parseFloat(rest.qty2 as string) || 0, price2: parseFloat(rest.price2 as string) || 0,
+      qty3: parseFloat(rest.qty3 as string) || 0, price3: parseFloat(rest.price3 as string) || 0,
+      qty4: parseFloat(rest.qty4 as string) || 0, price4: parseFloat(rest.price4 as string) || 0,
+      qty5: parseFloat(rest.qty5 as string) || 0, price5: parseFloat(rest.price5 as string) || 0,
+      qty6: parseFloat(rest.qty6 as string) || 0, price6: parseFloat(rest.price6 as string) || 0,
+      qty7: parseFloat(rest.qty7 as string) || 0, price7: parseFloat(rest.price7 as string) || 0,
+      totalKg, totalUsd, notes,
+    },
+    include: { client: true, variety: true },
+  })
+  res.json(updated)
+}
+
 export const deleteSale = async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id)
   const sale = await prisma.sale.findUnique({ where: { id } })

@@ -3,13 +3,13 @@ import Modal from '../Modal'
 import client from '../../api/client'
 import { Block, Cycle } from '../../types'
 
-interface Props { onClose: () => void; onSuccess: () => void }
+interface Props { onClose: () => void; onSuccess: () => void; preselectedBlockId?: number }
 
 const CATEGORIES = ['Semillas', 'Fertilizantes', 'Agroquímicos', 'Riego', 'Herramientas', 'Maquinaria', 'Transporte', 'Otros']
 
-export default function RegistrarGastoModal({ onClose, onSuccess }: Props) {
+export default function RegistrarGastoModal({ onClose, onSuccess, preselectedBlockId }: Props) {
   const [blocks, setBlocks] = useState<Block[]>([])
-  const [blockId, setBlockId] = useState('')
+  const [blockId, setBlockId] = useState(preselectedBlockId ? String(preselectedBlockId) : '')
   const [activeCycle, setActiveCycle] = useState<Cycle | null>(null)
   const [form, setForm] = useState({ category: '', item: '', quantity: '1', unit: 'unidad', cost: '', date: new Date().toISOString().split('T')[0], notes: '' })
   const [loading, setLoading] = useState(false)
@@ -18,8 +18,11 @@ export default function RegistrarGastoModal({ onClose, onSuccess }: Props) {
   const [done, setDone] = useState(false)
 
   useEffect(() => {
-    client.get<Block[]>('/blocks').then(r => setBlocks(r.data.filter(b => b.status === 'En Cultivo')))
-  }, [])
+    client.get<Block[]>('/blocks').then(r => {
+      setBlocks(r.data.filter(b => b.status === 'En Cultivo'))
+      if (preselectedBlockId) onBlockChange(String(preselectedBlockId))
+    })
+  }, [preselectedBlockId])
 
   const onBlockChange = async (id: string) => {
     setBlockId(id)

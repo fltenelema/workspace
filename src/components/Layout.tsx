@@ -1,5 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import NotificationBell from './NotificationBell'
+import SearchBar from './SearchBar'
 
 const navGroups = [
   {
@@ -9,12 +11,20 @@ const navGroups = [
     ],
   },
   {
+    label: 'Operaciones',
+    items: [
+      { to: '/ciclos', icon: '🌾', label: 'Ciclos' },
+      { to: '/reportes', icon: '📊', label: 'Reportes' },
+    ],
+  },
+  {
     label: 'Catálogos',
     items: [
       { to: '/catalogos/bloques', icon: '🗺️', label: 'Bloques' },
       { to: '/catalogos/cultivos', icon: '🌱', label: 'Cultivos' },
       { to: '/catalogos/clientes', icon: '🤝', label: 'Clientes' },
       { to: '/catalogos/personal', icon: '👷', label: 'Personal' },
+      { to: '/catalogos/inventario', icon: '📦', label: 'Inventario' },
     ],
   },
   {
@@ -25,8 +35,14 @@ const navGroups = [
   },
 ]
 
-const roleLabel: Record<string, string> = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Administrador', USER: 'Usuario' }
-const roleBg: Record<string, string> = { SUPER_ADMIN: 'bg-purple-100 text-purple-700', ADMIN: 'bg-blue-100 text-blue-700', USER: 'bg-gray-100 text-gray-600' }
+const roleLabel: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin', ADMIN: 'Administrador', USER: 'Usuario',
+}
+const roleBg: Record<string, string> = {
+  SUPER_ADMIN: 'bg-purple-100 text-purple-700',
+  ADMIN: 'bg-blue-100 text-blue-700',
+  USER: 'bg-gray-100 text-gray-600',
+}
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -53,7 +69,7 @@ export default function Layout() {
           {navGroups.map(group => {
             const visibleItems = group.items.filter(item =>
               !('adminOnly' in item && item.adminOnly) ||
-              user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN'
+              ['SUPER_ADMIN', 'ADMIN'].includes(user?.role ?? '')
             )
             if (visibleItems.length === 0) return null
             return (
@@ -95,11 +111,21 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-7">
-          <Outlet />
-        </div>
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Topbar */}
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 shrink-0">
+          <div className="flex-1">
+            <SearchBar />
+          </div>
+          <NotificationBell />
+        </header>
+
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-7">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

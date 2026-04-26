@@ -12,6 +12,10 @@ import salesRoutes from './routes/sales.routes'
 import expensesRoutes from './routes/expenses.routes'
 import laborsRoutes from './routes/labors.routes'
 import dashboardRoutes from './routes/dashboard.routes'
+import inventoryRoutes from './routes/inventory.routes'
+import reportsRoutes from './routes/reports.routes'
+import notificationsRoutes from './routes/notifications.routes'
+import searchRoutes from './routes/search.routes'
 
 dotenv.config()
 
@@ -32,6 +36,10 @@ app.use('/api/sales', salesRoutes)
 app.use('/api/expenses', expensesRoutes)
 app.use('/api/labors', laborsRoutes)
 app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/inventory', inventoryRoutes)
+app.use('/api/reports', reportsRoutes)
+app.use('/api/notifications', notificationsRoutes)
+app.use('/api/search', searchRoutes)
 
 app.listen(PORT, () => {
   console.log(`🌱 AgroControl API corriendo en http://localhost:${PORT}`)
