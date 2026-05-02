@@ -2,10 +2,13 @@ import { Response } from 'express'
 import prisma from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
+const tf = (req: AuthRequest) =>
+  req.userRole === 'SUPER_ADMIN' ? {} : { tenantId: req.tenantId ?? null }
+
 export const getCycleReport = async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id)
-  const cycle = await prisma.cycle.findUnique({
-    where: { id },
+  const cycle = await prisma.cycle.findFirst({
+    where: { id, ...tf(req) },
     include: {
       block: true, crop: true, variety: true,
       sales: { include: { client: true, variety: true }, orderBy: { date: 'asc' } },
@@ -58,7 +61,7 @@ export const getCycleReport = async (req: AuthRequest, res: Response) => {
 
 export const getPeriodReport = async (req: AuthRequest, res: Response) => {
   const { startDate, endDate } = req.query
-  const where: Record<string, unknown> = {}
+  const where: Record<string, unknown> = { ...tf(req) }
   if (startDate && endDate) {
     where.sowingDate = { gte: new Date(String(startDate)), lte: new Date(String(endDate)) }
   }
@@ -100,10 +103,13 @@ export const getPeriodReport = async (req: AuthRequest, res: Response) => {
   })
 }
 
-export const getCropPerformance = async (_req: AuthRequest, res: Response) => {
+export const getCropPerformance = async (req: AuthRequest, res: Response) => {
+  const tenantFilter = tf(req)
   const crops = await prisma.crop.findMany({
+    where: tenantFilter,
     include: {
       cycles: {
+        where: tenantFilter,
         include: { sales: true, expenses: true, labors: true, block: true },
       },
     },
@@ -136,8 +142,9 @@ export const getCropPerformance = async (_req: AuthRequest, res: Response) => {
   res.json(performance)
 }
 
-export const getWorkerPerformance = async (_req: AuthRequest, res: Response) => {
+export const getWorkerPerformance = async (req: AuthRequest, res: Response) => {
   const workers = await prisma.worker.findMany({
+    where: tf(req),
     include: {
       labors: { orderBy: { date: 'desc' } },
     },

@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(npx prisma *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "PowerShell($p = \\(Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue\\).OwningProcess | Where-Object { $_ -gt 4 } | Select-Object -First 1; if \\($p\\) { Stop-Process -Id $p -Force; \"Killed $p\" } else { \"Free\" })",
+      "Bash(xargs -I {} basename {})"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

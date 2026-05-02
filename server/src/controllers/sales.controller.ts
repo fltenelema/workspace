@@ -2,6 +2,9 @@ import { Response } from 'express'
 import prisma from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
+const cycleFilter = (req: AuthRequest) =>
+  req.userRole === 'SUPER_ADMIN' ? {} : { tenantId: req.tenantId ?? null }
+
 const calcTotals = (body: Record<string, unknown>) => {
   let totalKg = 0
   let totalUsd = 0
@@ -16,7 +19,9 @@ const calcTotals = (body: Record<string, unknown>) => {
 
 export const getSales = async (req: AuthRequest, res: Response) => {
   const { cycleId } = req.query
-  const where = cycleId ? { cycleId: parseInt(String(cycleId)) } : {}
+  const where: Record<string, unknown> = {}
+  if (cycleId) where.cycleId = parseInt(String(cycleId))
+  if (req.userRole !== 'SUPER_ADMIN') where.cycle = { tenantId: req.tenantId ?? null }
   const sales = await prisma.sale.findMany({
     where,
     include: { client: true, variety: true, cycle: { include: { block: true, crop: true } } },
@@ -29,10 +34,19 @@ export const createSale = async (req: AuthRequest, res: Response) => {
   const { cycleId, clientId, varietyId, date, notes, ...rest } = req.body
   if (!cycleId || !clientId) { res.status(400).json({ message: 'Ciclo y cliente son requeridos' }); return }
 
-  const cycle = await prisma.cycle.findUnique({ where: { id: parseInt(cycleId) } })
+  const cycle = await prisma.cycle.findFirst({
+    where: { id: parseInt(cycleId), ...cycleFilter(req) },
+  })
   if (!cycle) { res.status(404).json({ message: 'Ciclo no encontrado' }); return }
   if (cycle.status === 'Cerrado') { res.status(400).json({ message: 'El ciclo está cerrado' }); return }
 
+  const hasQty = [1,2,3,4,5,6,7].some(i => parseFloat(String(rest[`qty${i}`] ?? 0)) > 0)
+  if (!hasQty) { res.status(400).json({ message: 'Debe registrar al menos una cantidad' }); return }
+  for (let i = 1; i <= 7; i++) {
+    if (parseFloat(String(rest[`qty${i}`] ?? 0)) < 0 || parseFloat(String(rest[`price${i}`] ?? 0)) < 0) {
+      res.status(400).json({ message: 'Las cantidades y precios no pueden ser negativos' }); return
+    }
+  }
   const { totalKg, totalUsd } = calcTotals(rest)
   const sale = await prisma.sale.create({
     data: {
@@ -57,9 +71,17 @@ export const updateSale = async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id)
   const sale = await prisma.sale.findUnique({ where: { id }, include: { cycle: true } })
   if (!sale) { res.status(404).json({ message: 'Venta no encontrada' }); return }
+  if (req.userRole !== 'SUPER_ADMIN' && sale.cycle.tenantId !== (req.tenantId ?? null)) {
+    res.status(403).json({ message: 'No tienes permiso' }); return
+  }
   if (sale.cycle.status === 'Cerrado') { res.status(400).json({ message: 'No se puede editar una venta de un ciclo cerrado' }); return }
 
   const { clientId, varietyId, date, notes, ...rest } = req.body
+  for (let i = 1; i <= 7; i++) {
+    if (parseFloat(String(rest[`qty${i}`] ?? 0)) < 0 || parseFloat(String(rest[`price${i}`] ?? 0)) < 0) {
+      res.status(400).json({ message: 'Las cantidades y precios no pueden ser negativos' }); return
+    }
+  }
   const { totalKg, totalUsd } = calcTotals(rest)
 
   const updated = await prisma.sale.update({
@@ -84,8 +106,11 @@ export const updateSale = async (req: AuthRequest, res: Response) => {
 
 export const deleteSale = async (req: AuthRequest, res: Response) => {
   const id = parseInt(req.params.id)
-  const sale = await prisma.sale.findUnique({ where: { id } })
+  const sale = await prisma.sale.findUnique({ where: { id }, include: { cycle: true } })
   if (!sale) { res.status(404).json({ message: 'Venta no encontrada' }); return }
+  if (req.userRole !== 'SUPER_ADMIN' && sale.cycle.tenantId !== (req.tenantId ?? null)) {
+    res.status(403).json({ message: 'No tienes permiso' }); return
+  }
   await prisma.sale.delete({ where: { id } })
   res.json({ message: 'Venta eliminada' })
 }

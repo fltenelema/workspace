@@ -7,10 +7,12 @@ export const globalSearch = async (req: AuthRequest, res: Response) => {
   if (!q || String(q).length < 2) { res.json({ results: [] }); return }
 
   const search = String(q)
+  const tf = req.userRole === 'SUPER_ADMIN' ? {} : { tenantId: req.tenantId ?? null }
 
   const [cycles, clients, workers, blocks] = await Promise.all([
     prisma.cycle.findMany({
       where: {
+        ...tf,
         OR: [
           { code: { contains: search } },
           { block: { code: { contains: search } } },
@@ -22,15 +24,15 @@ export const globalSearch = async (req: AuthRequest, res: Response) => {
       take: 5,
     }),
     prisma.client.findMany({
-      where: { OR: [{ name: { contains: search } }, { email: { contains: search } }] },
+      where: { ...tf, OR: [{ name: { contains: search } }, { email: { contains: search } }] },
       take: 5,
     }),
     prisma.worker.findMany({
-      where: { name: { contains: search } },
+      where: { ...tf, name: { contains: search } },
       take: 5,
     }),
     prisma.block.findMany({
-      where: { OR: [{ code: { contains: search } }, { name: { contains: search } }] },
+      where: { ...tf, OR: [{ code: { contains: search } }, { name: { contains: search } }] },
       take: 5,
     }),
   ])

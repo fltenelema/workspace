@@ -198,6 +198,9 @@ export default function InventarioCatalog() {
                       <span className={`font-semibold text-sm ${item.quantity === 0 ? 'text-red-600' : isLow(item) ? 'text-amber-600' : 'text-gray-900'}`}>
                         {item.quantity} {item.unit}
                       </span>
+                      {isLow(item) && (
+                        <span className="ml-2 text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">Stock bajo</span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-right text-sm text-gray-400">{item.minStock > 0 ? `${item.minStock} ${item.unit}` : '—'}</td>
                     <td className="px-5 py-4 text-right text-sm text-gray-600">{item.cost > 0 ? `$${item.cost}` : '—'}</td>

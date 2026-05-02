@@ -7,21 +7,25 @@ import { User, Role } from '../../types'
 const ROLE_BADGE: Record<Role, string> = {
   SUPER_ADMIN: 'bg-purple-100 text-purple-700',
   ADMIN: 'bg-blue-100 text-blue-700',
+  SUPERVISOR: 'bg-orange-100 text-orange-700',
   USER: 'bg-gray-100 text-gray-600',
 }
 const ROLE_LABEL: Record<Role, string> = {
   SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Administrador',
+  SUPERVISOR: 'Supervisor',
   USER: 'Usuario',
 }
 
 export default function UsuarioList() {
   const { user: me } = useAuth()
   const [users, setUsers] = useState<User[]>([])
+  const [admins, setAdmins] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [activeFilter, setActiveFilter] = useState('')
+  const [adminFilter, setAdminFilter] = useState('')
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
 
@@ -33,6 +37,7 @@ export default function UsuarioList() {
       if (search) params.search = search
       if (roleFilter) params.role = roleFilter
       if (activeFilter !== '') params.active = activeFilter
+      if (adminFilter) params.tenantId = adminFilter
       const res = await client.get('/users', { params })
       setUsers(res.data)
     } catch {
@@ -40,9 +45,16 @@ export default function UsuarioList() {
     } finally {
       setLoading(false)
     }
-  }, [search, roleFilter, activeFilter])
+  }, [search, roleFilter, activeFilter, adminFilter])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
+
+  useEffect(() => {
+    if (me?.role !== 'SUPER_ADMIN') return
+    client.get<User[]>('/users', { params: { role: 'ADMIN' } })
+      .then(r => setAdmins(r.data))
+      .catch(() => {})
+  }, [me?.role])
 
   const handleToggle = async (id: number) => {
     try {
@@ -66,14 +78,14 @@ export default function UsuarioList() {
 
   const canEditUser = (u: User) => {
     if (me?.role === 'SUPER_ADMIN') return true
-    if (me?.role === 'ADMIN') return u.role === 'USER' || u.id === me.id
+    if (me?.role === 'ADMIN') return u.role === 'USER' || u.role === 'SUPERVISOR' || u.id === me.id
     return u.id === me?.id
   }
 
   const canToggleUser = (u: User) => {
     if (u.id === me?.id) return false
     if (me?.role === 'SUPER_ADMIN') return true
-    if (me?.role === 'ADMIN') return u.role === 'USER'
+    if (me?.role === 'ADMIN') return u.role === 'USER' || u.role === 'SUPERVISOR'
     return false
   }
 
@@ -116,6 +128,7 @@ export default function UsuarioList() {
           <option value="">Todos los roles</option>
           <option value="SUPER_ADMIN">Super Admin</option>
           <option value="ADMIN">Administrador</option>
+          <option value="SUPERVISOR">Supervisor</option>
           <option value="USER">Usuario</option>
         </select>
         <select
@@ -127,6 +140,20 @@ export default function UsuarioList() {
           <option value="true">Activos</option>
           <option value="false">Inactivos</option>
         </select>
+        {me?.role === 'SUPER_ADMIN' && (
+          <select
+            value={adminFilter}
+            onChange={e => setAdminFilter(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="">Todas las instancias</option>
+            {admins.map(a => (
+              <option key={a.tenantId} value={String(a.tenantId ?? '')}>
+                {a.name} — {a.tenantName}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Tabla */}
@@ -147,6 +174,7 @@ export default function UsuarioList() {
                   <th className="px-6 py-4 text-left">Email</th>
                   <th className="px-6 py-4 text-left">Rol</th>
                   <th className="px-6 py-4 text-left">Estado</th>
+                  {me?.role === 'SUPER_ADMIN' && <th className="px-6 py-4 text-left">Instancia</th>}
                   <th className="px-6 py-4 text-left">Registrado</th>
                   <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
@@ -176,6 +204,11 @@ export default function UsuarioList() {
                         {u.active ? '● Activo' : '● Inactivo'}
                       </span>
                     </td>
+                    {me?.role === 'SUPER_ADMIN' && (
+                      <td className="px-6 py-4 text-sm text-gray-500">
+                        {u.tenantName ?? <span className="text-gray-300">—</span>}
+                      </td>
+                    )}
                     <td className="px-6 py-4 text-sm text-gray-400">
                       {new Date(u.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>

@@ -44,9 +44,14 @@ function CycleCard({ cycle }: { cycle: DashboardCycle }) {
           </div>
           <p className="text-xs text-gray-400 mt-0.5 font-mono">{cycle.code}</p>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${cfg.badge}`}>
-          {cfg.dot} {dayLabel}
-        </span>
+        <div className="text-right">
+          <span className={`text-xs px-2 py-1 rounded-full font-medium ${cfg.badge}`}>
+            {cfg.dot} {dayLabel}
+          </span>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {new Date(cycle.harvestDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-xs mt-3">

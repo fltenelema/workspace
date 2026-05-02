@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 export interface AuthRequest extends Request {
   userId?: number
   userRole?: string
+  tenantId?: number | null
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -15,9 +16,14 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
 
   const token = authHeader.slice(7)
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { id: number; role: string }
+    const secret = process.env.JWT_SECRET
+    if (!secret) { res.status(500).json({ message: 'Configuración de servidor inválida' }); return }
+    const payload = jwt.verify(token, secret) as {
+      id: number; role: string; tenantId?: number | null
+    }
     req.userId = payload.id
     req.userRole = payload.role
+    req.tenantId = payload.tenantId ?? null
     next()
   } catch {
     res.status(401).json({ message: 'Token inválido o expirado' })

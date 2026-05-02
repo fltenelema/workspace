@@ -2,20 +2,24 @@ import { Response } from 'express'
 import prisma from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
-export const getDashboard = async (_req: AuthRequest, res: Response) => {
+const tenantFilter = (req: AuthRequest) =>
+  req.userRole === 'SUPER_ADMIN' ? {} : { tenantId: req.tenantId ?? null }
+
+export const getDashboard = async (req: AuthRequest, res: Response) => {
   const today = new Date()
+  const tf = tenantFilter(req)
 
   const [activeCycles, totalBlocks, freeBlocks] = await Promise.all([
     prisma.cycle.findMany({
-      where: { status: { not: 'Cerrado' } },
+      where: { status: { not: 'Cerrado' }, ...tf },
       include: {
         block: true, crop: true, variety: true,
         sales: true, expenses: true, labors: true,
       },
       orderBy: { sowingDate: 'asc' },
     }),
-    prisma.block.count(),
-    prisma.block.count({ where: { status: 'Libre' } }),
+    prisma.block.count({ where: tf }),
+    prisma.block.count({ where: { status: 'Libre', ...tf } }),
   ])
 
   const cycles = activeCycles.map(cycle => {

@@ -7,6 +7,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tenant {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]
+  blocks            Block[]
+  crops             Crop[]
+  clients           Client[]
+  workers           Worker[]
+  cycles            Cycle[]
+  inventory         Inventory[]
+  tasks             Task[]
+  knowledgeArticles KnowledgeArticle[]
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   name      String
@@ -14,31 +33,48 @@ model User {
   password  String
   role      String   @default("USER")
   active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  tenantId      Int?
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tasksCreated      Task[]              @relation("TaskCreatedBy")
+  tasksAssigned     Task[]              @relation("TaskAssignedTo")
+  knowledgeArticles KnowledgeArticle[]  @relation("ArticleCreatedBy")
+  publishedArticles KnowledgeArticle[]  @relation("ArticlePublishedBy")
 }
 
 model Block {
   id        Int      @id @default(autoincrement())
-  code      String   @unique
+  code      String
   name      String
   area      Float
   status    String   @default("Libre")
   notes     String?
+  tenantId  Int?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  cycles    Cycle[]
+  cycles            Cycle[]
+  tasks             Task[]
+  knowledgeArticles KnowledgeArticle[]
+
+  @@unique([code, tenantId])
 }
 
 model Crop {
   id          Int       @id @default(autoincrement())
-  name        String    @unique
+  name        String
   unit        String    @default("kg")
   harvestDays Int       @default(90)
   notes       String?
+  tenantId    Int?
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id])
   createdAt   DateTime  @default(now())
-  varieties   Variety[]
-  cycles      Cycle[]
+  varieties         Variety[]
+  cycles            Cycle[]
+  knowledgeArticles KnowledgeArticle[]
+
+  @@unique([name, tenantId])
 }
 
 model Variety {
@@ -57,6 +93,8 @@ model Client {
   email     String?
   notes     String?
   active    Boolean  @default(true)
+  tenantId  Int?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   createdAt DateTime @default(now())
   sales     Sale[]
 }
@@ -67,6 +105,8 @@ model Worker {
   dailySalary Float
   phone       String?
   active      Boolean  @default(true)
+  tenantId    Int?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
   createdAt   DateTime @default(now())
   labors      Labor[]
 }
@@ -84,11 +124,18 @@ model Cycle {
   sowingDate  DateTime
   closingDate DateTime?
   notes       String?
+  tenantId    Int?
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  sales       Sale[]
-  expenses    Expense[]
-  labors      Labor[]
+  sales             Sale[]
+  expenses          Expense[]
+  labors            Labor[]
+  knowledgeArticles KnowledgeArticle[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([blockId])
 }
 
 model Sale {
@@ -118,6 +165,9 @@ model Sale {
   totalUsd  Float    @default(0)
   notes     String?
   createdAt DateTime @default(now())
+
+  @@index([cycleId])
+  @@index([date])
 }
 
 model Expense {
@@ -133,6 +183,8 @@ model Expense {
   date      DateTime @default(now())
   notes     String?
   createdAt DateTime @default(now())
+
+  @@index([cycleId])
 }
 
 model Labor {
@@ -147,6 +199,9 @@ model Labor {
   date      DateTime @default(now())
   notes     String?
   createdAt DateTime @default(now())
+
+  @@index([cycleId])
+  @@index([workerId])
 }
 
 model Inventory {
@@ -158,10 +213,63 @@ model Inventory {
   minStock  Float    @default(0)
   cost      Float    @default(0)
   notes     String?
+  tenantId  Int?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([category])
+}
+
+model Task {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String?
+  blockId      Int
+  block        Block    @relation(fields: [blockId], references: [id])
+  assignedToId Int
+  assignedTo   User     @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  priority     String   @default("Media")
+  dueDate      DateTime
+  status       String   @default("Pendiente")
+  notes         String?
+  observations  String?
+  createdById  Int?
+  createdBy    User?    @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  tenantId     Int?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([assignedToId])
+}
+
+model KnowledgeArticle {
+  id            Int       @id @default(autoincrement())
+  title         String
+  category      String
+  content       String
+  tags          String?
+  status        String    @default("Borrador")
+  blockId       Int?
+  block         Block?    @relation(fields: [blockId], references: [id])
+  cycleId       Int?
+  cycle         Cycle?    @relation(fields: [cycleId], references: [id])
+  cropId        Int?
+  crop          Crop?     @relation(fields: [cropId], references: [id])
+  createdById   Int?
+  createdBy     User?     @relation("ArticleCreatedBy",   fields: [createdById],   references: [id])
+  publishedById Int?
+  publishedBy   User?     @relation("ArticlePublishedBy", fields: [publishedById], references: [id])
+  publishedAt   DateTime?
+  tenantId      Int?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
 }
 
 model AuditLog {

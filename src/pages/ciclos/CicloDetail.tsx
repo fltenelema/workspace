@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import client from '../../api/client'
-import { Cycle, Sale, Expense, Labor, Client, Worker, Variety } from '../../types'
+import { Cycle, Sale, Expense, Labor, Client, Variety } from '../../types'
 import Modal from '../../components/Modal'
 import RegistrarVentaModal from '../../components/modals/RegistrarVentaModal'
 import RegistrarGastoModal from '../../components/modals/RegistrarGastoModal'
@@ -514,8 +514,8 @@ function EditLaborModal({ labor, onClose, onSuccess }: { labor: Labor; onClose: 
 function EditSaleModal({ sale, cycleUnit, varieties, onClose, onSuccess }: { sale: Sale; cycleUnit: string; varieties: Variety[]; clients: Client[]; onClose: () => void; onSuccess: () => void }) {
   const [rows, setRows] = useState(() =>
     Array.from({ length: 7 }, (_, i) => ({
-      qty: String((sale as Record<string, number>)[`qty${i + 1}`] || ''),
-      price: String((sale as Record<string, number>)[`price${i + 1}`] || ''),
+      qty: String((sale as unknown as Record<string, number>)[`qty${i + 1}`] || ''),
+      price: String((sale as unknown as Record<string, number>)[`price${i + 1}`] || ''),
     }))
   )
   const [clients, setClients] = useState<Client[]>([])

@@ -4,12 +4,18 @@ import jwt from 'jsonwebtoken'
 import prisma from '../lib/prisma'
 import { AuthRequest } from '../middleware/auth.middleware'
 
-const safeUser = (user: { id: number; name: string; email: string; role: string; active: boolean; createdAt: Date; updatedAt: Date }) => ({
+const safeUser = (user: {
+  id: number; name: string; email: string; role: string
+  active: boolean; tenantId?: number | null; createdAt: Date; updatedAt: Date
+  tenant?: { name: string } | null
+}) => ({
   id: user.id,
   name: user.name,
   email: user.email,
   role: user.role,
   active: user.active,
+  tenantId: user.tenantId ?? null,
+  tenantName: user.tenant?.name ?? null,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 })
@@ -22,7 +28,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     return
   }
 
-  const user = await prisma.user.findUnique({ where: { email } })
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: { tenant: { select: { name: true } } },
+  })
   if (!user) {
     res.status(401).json({ message: 'Credenciales inválidas' })
     return
@@ -39,7 +48,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 
   const token = jwt.sign(
-    { id: user.id, role: user.role },
+    { id: user.id, role: user.role, tenantId: user.tenantId ?? null },
     process.env.JWT_SECRET || 'secret',
     { expiresIn: '24h' }
   )
@@ -48,7 +57,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 }
 
 export const me = async (req: AuthRequest, res: Response): Promise<void> => {
-  const user = await prisma.user.findUnique({ where: { id: req.userId } })
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    include: { tenant: { select: { name: true } } },
+  })
   if (!user) {
     res.status(404).json({ message: 'Usuario no encontrado' })
     return

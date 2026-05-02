@@ -1,9 +1,16 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'USER'
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'SUPERVISOR' | 'USER'
 export type CycleStatus = 'En Curso' | 'Cosechando' | 'Cerrado'
 export type Alert = 'red' | 'yellow' | 'green'
 
+export interface Tenant {
+  id: number; name: string; slug: string; active: boolean; createdAt: string; updatedAt: string
+  _count?: { users: number; blocks: number; cycles: number; workers?: number }
+  users?: Pick<User, 'id' | 'name' | 'email' | 'active'>[]
+}
+
 export interface User {
-  id: number; name: string; email: string; role: Role; active: boolean; createdAt: string; updatedAt: string
+  id: number; name: string; email: string; role: Role; active: boolean
+  tenantId: number | null; tenantName: string | null; createdAt: string; updatedAt: string
 }
 
 export interface Block {
@@ -19,7 +26,7 @@ export interface Crop {
 }
 
 export interface Client {
-  id: number; name: string; phone?: string; email?: string; active: boolean
+  id: number; name: string; phone?: string; email?: string; notes?: string; active: boolean
 }
 
 export interface Worker {
@@ -124,6 +131,33 @@ export interface CropPerformance {
   totalCycles: number; closedCycles: number; activeCycles: number
   totalRevenue: number; totalCost: number; totalProfit: number; totalKg: number
   avgProfitPerM2: number; avgRevenuePerKg: number
+}
+
+export type ArticleCategory = 'Plagas' | 'Enfermedades' | 'Fertilización' | 'Riego / Suelo'
+export type ArticleStatus   = 'Borrador' | 'Publicado'
+
+export interface KnowledgeArticle {
+  id: number; title: string; category: ArticleCategory; content: string
+  tags?: string; status: ArticleStatus
+  blockId?: number;  block?:  Pick<Block,  'id' | 'code' | 'name'>
+  cycleId?: number;  cycle?:  Pick<Cycle,  'id' | 'code' | 'status'>
+  cropId?:  number;  crop?:   Pick<Crop,   'id' | 'name'>
+  createdById?:   number; createdBy?:   Pick<User, 'id' | 'name'>
+  publishedById?: number; publishedBy?: Pick<User, 'id' | 'name'>
+  publishedAt?: string; tenantId: number | null
+  createdAt: string; updatedAt: string
+}
+
+export type TaskPriority = 'Baja' | 'Media' | 'Alta' | 'Urgente'
+export type TaskStatus   = 'Pendiente' | 'En Proceso' | 'Completada'
+
+export interface Task {
+  id: number; title: string; description?: string
+  blockId: number; block: Pick<Block, 'id' | 'code' | 'name'>
+  assignedToId: number; assignedTo: Pick<User, 'id' | 'name'>
+  priority: TaskPriority; dueDate: string; status: TaskStatus
+  notes?: string; observations?: string; createdById?: number; createdBy?: Pick<User, 'id' | 'name'>
+  tenantId: number | null; createdAt: string; updatedAt: string
 }
 
 export interface WorkerPerformance {

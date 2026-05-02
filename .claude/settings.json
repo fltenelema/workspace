@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(git push *)",
+      "Bash(npx tsx -e ' *)",
+      "Bash(npx kill-port *)",
+      "Bash(npm run *)",
+      "Bash(echo \"Backend PID: $!\")",
+      "Bash(echo \"Frontend PID: $!\")"
     ]
   }
 }

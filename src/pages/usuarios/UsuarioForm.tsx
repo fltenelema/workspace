@@ -10,7 +10,7 @@ export default function UsuarioForm() {
   const navigate = useNavigate()
   const { user: me } = useAuth()
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'USER' as Role, active: true })
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'USER' as Role, active: true, tenantName: '' })
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(isEditing)
   const [error, setError] = useState('')
@@ -21,13 +21,13 @@ export default function UsuarioForm() {
     client.get<User>(`/users/${id}`)
       .then(res => {
         const u = res.data
-        setForm({ name: u.name, email: u.email, password: '', role: u.role, active: u.active })
+        setForm({ name: u.name, email: u.email, password: '', role: u.role, active: u.active, tenantName: '' })
       })
       .catch(() => setError('No se pudo cargar el usuario'))
       .finally(() => setFetching(false))
   }, [id, isEditing])
 
-  const handleChange = (field: keyof typeof form, value: string | boolean) => {
+  const handleChange = (field: string, value: string | boolean) => {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
@@ -45,6 +45,9 @@ export default function UsuarioForm() {
         active: form.active,
       }
       if (form.password) payload.password = form.password
+      if (me?.role === 'SUPER_ADMIN' && form.role === 'ADMIN') {
+        payload.tenantName = form.tenantName
+      }
 
       if (isEditing) {
         await client.put(`/users/${id}`, payload)
@@ -63,7 +66,7 @@ export default function UsuarioForm() {
     }
   }
 
-  const canAssignRole = me?.role === 'SUPER_ADMIN'
+  const canAssignRole = me?.role === 'SUPER_ADMIN' || me?.role === 'ADMIN'
   const isOwnProfile = id === String(me?.id)
 
   if (fetching) {
@@ -149,19 +152,32 @@ export default function UsuarioForm() {
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="USER">Usuario</option>
-                  <option value="ADMIN">Administrador</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
+                  <option value="SUPERVISOR">Supervisor</option>
+                  {me?.role === 'SUPER_ADMIN' && <option value="ADMIN">Administrador</option>}
+                  {me?.role === 'SUPER_ADMIN' && <option value="SUPER_ADMIN">Super Admin</option>}
                 </select>
               ) : (
                 <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-2.5 text-sm text-gray-500">
-                  {{
-                    SUPER_ADMIN: 'Super Admin',
-                    ADMIN: 'Administrador',
-                    USER: 'Usuario',
-                  }[form.role]}
+                  {{ SUPER_ADMIN: 'Super Admin', ADMIN: 'Administrador', SUPERVISOR: 'Supervisor', USER: 'Usuario' }[form.role]}
                 </div>
               )}
             </div>
+
+            {/* Instancia — solo SUPER_ADMIN creando ADMIN */}
+            {me?.role === 'SUPER_ADMIN' && !isEditing && form.role === 'ADMIN' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Nombre de la instancia</label>
+                <input
+                  type="text"
+                  required
+                  value={form.tenantName}
+                  onChange={e => handleChange('tenantName', e.target.value)}
+                  placeholder="Ej: Finca El Paraíso"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">Se creará una nueva instancia con este nombre.</p>
+              </div>
+            )}
 
             {/* Estado */}
             {isEditing && !isOwnProfile && me?.role !== 'USER' && (

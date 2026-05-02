@@ -5,6 +5,19 @@ import { PeriodReport, CropPerformance, WorkerPerformance, CycleReport } from '.
 
 type Tab = 'periodo' | 'cultivos' | 'trabajadores' | 'ciclo'
 
+const exportCSV = (rows: Record<string, unknown>[], filename: string) => {
+  if (!rows.length) return
+  const headers = Object.keys(rows[0])
+  const csv = [
+    headers.join(','),
+    ...rows.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(',')),
+  ].join('\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function ReportesPage() {
   const [searchParams] = useSearchParams()
   const cicloParam = searchParams.get('ciclo')
@@ -102,8 +115,14 @@ function PeriodoReport() {
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">Ciclos en el período</h3>
+              {data.cycles.length > 0 && (
+                <button onClick={() => exportCSV(data.cycles.map(c => ({ Ciclo: c.code ?? '', Bloque: c.blockCode, Cultivo: c.cropName, Estado: c.status, Ingresos: c.revenue, Costos: c.totalCost, Ganancia: c.profit, 'Area m2': c.area })), 'reporte-periodo.csv')}
+                  className="text-xs text-green-700 hover:text-green-900 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                  Exportar CSV
+                </button>
+              )}
             </div>
             {data.cycles.length === 0 ? (
               <div className="py-12 text-center text-gray-400">No hay ciclos en este período</div>
@@ -182,6 +201,12 @@ function CultivosReport() {
           <option value="avgRevenuePerKg">Precio/kg</option>
           <option value="totalCycles">Ciclos</option>
         </select>
+        {sorted.length > 0 && (
+          <button onClick={() => exportCSV(sorted.map(c => ({ Cultivo: c.name, Ciclos: c.totalCycles, 'Ciclos activos': c.activeCycles, 'Kg totales': c.totalKg, Ingresos: c.totalRevenue, Costos: c.totalCost, Ganancia: c.totalProfit, '$/m2': c.avgProfitPerM2, '$/kg': c.avgRevenuePerKg })), 'reporte-cultivos.csv')}
+            className="ml-auto text-xs text-green-700 hover:text-green-900 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
+            Exportar CSV
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -242,6 +267,15 @@ function TrabajadoresReport() {
   if (loading) return <div className="py-20 text-center text-gray-400">Cargando...</div>
 
   return (
+    <div className="space-y-3">
+      {sorted.length > 0 && (
+        <div className="flex justify-end">
+          <button onClick={() => exportCSV(sorted.map(w => ({ Trabajador: w.name, 'Tarifa/dia': w.dailySalary, 'Total dias': w.totalDays, Ciclos: w.cyclesCount, 'Total ganado': w.totalEarned, 'Ultima actividad': w.lastActivity ?? '', Estado: w.active ? 'Activo' : 'Inactivo' })), 'reporte-trabajadores.csv')}
+            className="text-xs text-green-700 hover:text-green-900 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
+            Exportar CSV
+          </button>
+        </div>
+      )}
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -278,6 +312,7 @@ function TrabajadoresReport() {
         </table>
         {data.length === 0 && <div className="py-12 text-center text-gray-400">Sin datos de trabajadores</div>}
       </div>
+    </div>
     </div>
   )
 }
